@@ -1,8 +1,8 @@
-# Базовые библиотеки
+# Импорт базовых библиотек
 from datetime import datetime
 import sys
 
-# Подключаемые библиотеки
+# Импорт подключаемых библиотек
 import pandas as pd
 import pyexcelerate as xls
 import mysql.connector as db
@@ -16,9 +16,9 @@ def summa_spiska(x_list):
 
 
 if __name__ == "__main__":
-    ###################################
-    # Изменять дату в файле variables.#
-    ###################################
+    ######################################
+    # Изменять дату в файле variables.py #
+    ######################################
     try:
         # Импорт переменных
         import variables
@@ -30,7 +30,8 @@ if __name__ == "__main__":
     except:
         print("Отсутствует файл с переменными, или он переменные заданы некорректно ")
         sys.exit()
-
+    ###################################
+    
 
     # Код основной программы
     if not (isinstance(year,int) and isinstance(month,int) and isinstance(day_start,int) and isinstance(day_end,int)):
@@ -52,23 +53,23 @@ if __name__ == "__main__":
         input()
         sys.exit()
     
+    # Запрос к БД на выборку 10Гб интерфейсов
     sql_string = """
     SELECT
     bd.nameds as 'Interface',
-    round(bd.peak/(1000*10000), 2) as 'Percent',
+    round(bd.peak/(1000*100000), 2) as 'Percent',
     round(bd.peak, 2) as 'Speed',
     bd.day as 'Day',
     bd.month as 'Month'
     FROM mbh_day as bd
     WHERE
-    bd.peak > 750000000 AND
+    bd.peak > 7500000000 AND
     (bd.nameds like "%csg%" OR bd.nameds like "%pagg%") AND
     (
-	 bd.nameds like "%|GigabitEthernet%" OR 
-	 bd.nameds like "%|Gi%" OR
-	 bd.nameds like "%|ge-" OR
-	 bd.nameds like "%:Gi%" OR
- 	 bd.nameds like "%:Ge%"
+	bd.nameds like "%|Te%" OR 
+	bd.nameds like "%|xe%" OR
+	bd.nameds like "%:te%" OR
+ 	bd.nameds like "%:xe%"
 	) AND
     bd.nameds not like "%Po1%" AND
     bd.nameds not like "%Po2%" AND
@@ -86,10 +87,10 @@ if __name__ == "__main__":
     df = pd.read_sql(sql_string, db_connection)
     db_connection.close()
 
-    ### Поиск k дней подряд 
     k = 5 #Сколько дней подряд
 
     list_date = df['Day'].tolist()
+
     start = list_date[0]
     
     if (list_date[1]-list_date[0]) == 1:
@@ -100,12 +101,12 @@ if __name__ == "__main__":
     for i in range (1, len(list_date)):
         if (list_date[i]-start) == 1:
             start = list_date[i]
-            # print(i, list_date[i])
+
             list_date_bool.append(1)
         else:
             start = list_date[i]
             list_date_bool.append(0)
-    
+
     delta = 0
     w_list = []
 
@@ -116,16 +117,17 @@ if __name__ == "__main__":
             w_list.append(1)
         else:
             w_list.append(0)
-
+    
 
     z_count = 0
     step = k-1
     for i in range (0, len(w_list)):
         if w_list[i] == 1 and z_count == 0:
+            # print('z=1 and count=0')
             z_count = 1
             step = k-1
         if w_list[i] == 0 and z_count == 1:
-            
+            # print('?')
             w_list[i] = 1
             step = step - 1
             if step == 0:
@@ -152,7 +154,7 @@ if __name__ == "__main__":
     # Формируем результирующую таблицу
     x_total = pd.merge(x_left, x_right, how='inner', left_on='Interface', right_on='Interface', )
     x_total['speed_int'] = x_total['Speed']/x_total[0]
-    x_total['Average daily utilization, %'] = x_total['speed_int']/10000000
+    x_total['Average daily utilization, %'] = x_total['speed_int']/100000000
     x_total = x_total.round(2)
 
     # Переименовываем столбцы для красоты при размещении в excel файл
@@ -162,7 +164,7 @@ if __name__ == "__main__":
         
     # В excel файл выводим таблицу df в второй лист (Extended data), и обработанные данные x_total в первый лист(Calculated data)
     
-    file_name = "OUT\\{}_{}_{}-mbh_1Gb.xlsx".format(year, month, day_end)
+    file_name = "OUT\\{}_{}_{}-mbh_10Gb.xlsx".format(year, month, day_end)
     wb = xls.Workbook()
 
     data = [x_total.columns.tolist(), ] + x_total.values.tolist()
